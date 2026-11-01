@@ -2,29 +2,17 @@ import * as React from 'react';
 import {
   AlertCircle,
   ArrowRight,
-  BadgeCheck,
-  Building2,
   Check,
   CheckCircle2,
   Clock,
-  Compass,
-  Copy,
-  ExternalLink,
-  Flame,
   Key,
-  Layers,
   Lock,
   MapPin,
   QrCode,
-  RefreshCw,
   RotateCcw,
-  ShieldAlert,
   ShieldCheck,
-  ShoppingBag,
   Sparkles,
   Users,
-  UserCheck,
-  Wallet,
   X,
   Zap,
 } from 'lucide-react';
@@ -148,7 +136,7 @@ export function StitchCampusHub({ className, onEnterApp }: StitchCampusHubProps)
   const [poolCurrent, setPoolCurrent] = React.useState(69);
   const [poolTarget] = React.useState(149);
   const [rideSeatsLocked, setRideSeatsLocked] = React.useState(2);
-  const [gearClaimed, setGearClaimed] = React.useState(false);
+  const [, setGearClaimed] = React.useState(false);
 
   const isEmailValid = STUDENT_EMAIL_RE.test(email.trim());
 

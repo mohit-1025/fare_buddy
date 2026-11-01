@@ -1,15 +1,8 @@
 import * as React from 'react';
 import {
   ArrowRight,
-  CarTaxiFront,
-  Check,
-  CheckCircle2,
   Clock,
-  Compass,
-  MapPin,
   Plus,
-  Share2,
-  Sparkles,
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';

@@ -1,18 +1,4 @@
 import * as React from 'react';
-import {
-  ArrowRight,
-  BookOpen,
-  Check,
-  CheckCircle2,
-  Compass,
-  DraftingCompass,
-  Filter,
-  Flame,
-  Plus,
-  ShieldCheck,
-  Sparkles,
-  Tag,
-} from 'lucide-react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';

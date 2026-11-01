@@ -3,7 +3,13 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Deploy base path. "/" for Netlify / Vercel / custom domains.
+// GitHub Pages project sites live at "/<repo-name>/" — the workflow sets BASE_PATH.
+const rawBase = process.env.BASE_PATH ?? '/';
+const base = `/${rawBase.replace(/^\/+|\/+$/g, '')}/`.replace(/^\/\/$/, '/');
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -18,22 +24,22 @@ export default defineConfig({
         background_color: '#FAFAF8',
         display: 'standalone',
         orientation: 'portrait',
-        start_url: '/',
-        scope: '/',
+        start_url: base,
+        scope: base,
         categories: ['shopping', 'travel', 'social'],
         icons: [
           {
-            src: '/pwa-192.png',
+            src: 'pwa-192.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: '/pwa-512.png',
+            src: 'pwa-512.png',
             sizes: '512x512',
             type: 'image/png',
           },
           {
-            src: '/pwa-maskable-512.png',
+            src: 'pwa-maskable-512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'maskable',
