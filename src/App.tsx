@@ -6,6 +6,7 @@ import { OnboardingPage } from '@/pages/onboarding/onboarding-page';
 import { CartPoolPage } from '@/pages/cart/cart-pool-page';
 import { RidePoolPage } from '@/pages/ride/ride-pool-page';
 import { GearBazaarPage } from '@/pages/gear/gear-bazaar-page';
+import { RequestsPage } from '@/pages/requests/requests-page';
 import { ImpactPage } from '@/pages/impact/impact-page';
 import { SettingsPage } from '@/pages/settings/settings-page';
 import { CampusHubPage } from '@/pages/hub/campus-hub-page';
@@ -32,6 +33,7 @@ export default function App() {
           <Route path="/cart" element={<CartPoolPage />} />
           <Route path="/ride" element={<RidePoolPage />} />
           <Route path="/gear" element={<GearBazaarPage />} />
+          <Route path="/requests" element={<RequestsPage />} />
           <Route path="/hub" element={<CampusHubPage />} />
           <Route path="/impact" element={<ImpactPage />} />
           <Route path="/settings" element={<SettingsPage />} />

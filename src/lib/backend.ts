@@ -59,6 +59,7 @@ const emptyProfile = (id: string, email: string): Profile => ({
   hostel: null,
   wing: null,
   room: null,
+  phone: null,
   upi_id: null,
   created_at: new Date().toISOString(),
 });
@@ -284,6 +285,7 @@ export const backend = {
             hostel: payload.hostel,
             wing: payload.wing,
             room: payload.room,
+            phone: payload.phone,
             upi_id: payload.upi_id.trim(),
           },
           { onConflict: 'id' },

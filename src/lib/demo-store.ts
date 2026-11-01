@@ -1,4 +1,4 @@
-import { createDemoDatabase, DEMO_DB_VERSION } from './demo-seed';
+import { createDemoDatabase, createSeedAccounts, DEMO_DB_VERSION } from './demo-seed';
 import type { DemoDatabase } from './types';
 
 const DB_KEY = 'farebuddy:demo-db:v1';
@@ -71,12 +71,46 @@ function readRawDatabase(): DemoDatabase | null {
   return null;
 }
 
+/**
+ * Adds seed accounts introduced after a browser stored its demo database, so
+ * new hosts/sellers show up without forcing a full reseed.
+ */
+function mergeSeedAccounts(db: DemoDatabase) {
+  const { users, profiles } = createSeedAccounts();
+  const userIds = new Set(db.users.map((user) => user.id));
+  const profilesById = new Map(db.profiles.map((profile) => [profile.id, profile]));
+  let changed = false;
+
+  for (const user of users) {
+    if (userIds.has(user.id)) continue;
+    db.users.push(user);
+    changed = true;
+  }
+
+  for (const profile of profiles) {
+    const existing = profilesById.get(profile.id);
+    if (!existing) {
+      db.profiles.push(profile);
+      changed = true;
+      continue;
+    }
+    if (!existing.phone && profile.phone) {
+      existing.phone = profile.phone;
+      changed = true;
+    }
+  }
+
+  return changed;
+}
+
 export function loadDemoDatabase(): DemoDatabase {
   if (!canUseStorage()) return createDemoDatabase();
 
   const existing = readRawDatabase();
   if (existing) {
-    if (reviveDemoWindows(existing)) persist(existing);
+    const revived = reviveDemoWindows(existing);
+    const merged = mergeSeedAccounts(existing);
+    if (revived || merged) persist(existing);
     return existing;
   }
 

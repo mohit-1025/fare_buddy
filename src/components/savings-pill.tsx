@@ -18,7 +18,8 @@ export function SavingsPill({ amount, label = 'You save', className, size = 'sm'
       )}
     >
       <ArrowUpRight className={size === 'sm' ? 'h-3 w-3' : 'h-4 w-4'} strokeWidth={2.6} />
-      {label} <span className="tabular-nums">{amount}</span>
+      <span className="max-[420px]:hidden">{label}</span>
+      <span className="tabular-nums">{amount}</span>
     </span>
   );
 }

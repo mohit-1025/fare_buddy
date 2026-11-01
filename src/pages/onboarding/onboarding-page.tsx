@@ -28,15 +28,17 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { FLOOR_SUGGESTIONS, HOSTELS } from '@/lib/constants';
-import { validateName, validateUpi } from '@/lib/validation';
+import { normalizePhone, validateName, validatePhone, validateUpi } from '@/lib/validation';
 import { cn } from '@/lib/utils';
 
-type FieldErrors = Partial<Record<'full_name' | 'hostel' | 'wing' | 'upi_id', string>>;
+type FieldErrors = Partial<
+  Record<'full_name' | 'phone' | 'hostel' | 'wing' | 'room' | 'upi_id', string>
+>;
 
 const STEPS = [
   {
-    title: 'Your name',
-    caption: 'How pool-mates see you',
+    title: 'Your details',
+    caption: 'How pool-mates reach you',
     icon: UserRound,
   },
   {
@@ -66,6 +68,7 @@ export function OnboardingPage() {
 
   const [step, setStep] = React.useState(0);
   const [fullName, setFullName] = React.useState(profile?.full_name ?? '');
+  const [phone, setPhone] = React.useState(profile?.phone ?? '');
   const [hostel, setHostel] = React.useState(profile?.hostel ?? '');
   const [wing, setWing] = React.useState(profile?.wing ?? '');
   const [room, setRoom] = React.useState(profile?.room ?? '');
@@ -81,10 +84,13 @@ export function OnboardingPage() {
     if (step === 0) {
       const nameError = validateName(fullName);
       if (nameError) next.full_name = nameError;
+      const phoneError = validatePhone(phone);
+      if (phoneError) next.phone = phoneError;
     }
     if (step === 1) {
       if (!hostel) next.hostel = 'Pick your hostel';
-      if (!wing.trim()) next.wing = 'Add your wing or floor';
+      if (!wing.trim()) next.wing = 'Pick your floor';
+      if (!room.trim()) next.room = 'Add your room number';
     }
     if (step === 2) {
       const upiError = validateUpi(upi);
@@ -111,7 +117,8 @@ export function OnboardingPage() {
         full_name: fullName.trim(),
         hostel,
         wing: wing.trim(),
-        room: room.trim() || null,
+        room: room.trim(),
+        phone: normalizePhone(phone),
         upi_id: upi.trim(),
       });
       toast.success(`Welcome to FareBuddy, ${saved.full_name?.split(' ')[0] ?? 'hosteller'}!`, {
@@ -230,6 +237,31 @@ export function OnboardingPage() {
                     </p>
                     <p className="mt-1 break-all text-[13px] font-bold">{user?.email}</p>
                   </div>
+                  <div>
+                    <Label htmlFor="phone">Phone number</Label>
+                    <Input
+                      id="phone"
+                      className="mt-2"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel"
+                      maxLength={10}
+                      placeholder="10-digit mobile number"
+                      value={phone}
+                      onChange={(event) => {
+                        setPhone(event.target.value);
+                        setErrors((current) => ({ ...current, phone: undefined }));
+                      }}
+                      aria-invalid={Boolean(errors.phone)}
+                    />
+                    {errors.phone ? (
+                      <FieldError>{errors.phone}</FieldError>
+                    ) : (
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        Shown to the other side when you claim gear or join a pool.
+                      </p>
+                    )}
+                  </div>
                 </div>
               ) : null}
 
@@ -260,11 +292,11 @@ export function OnboardingPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="wing">Wing / floor</Label>
+                    <Label htmlFor="wing">Floor</Label>
                     <Input
                       id="wing"
                       className="mt-2"
-                      placeholder="e.g. Floor 3 · Wing B"
+                      placeholder="e.g. Floor 3"
                       value={wing}
                       onChange={(event) => {
                         setWing(event.target.value);
@@ -296,9 +328,7 @@ export function OnboardingPage() {
                   </div>
 
                   <div>
-                    <Label htmlFor="room">
-                      Room number <span className="font-normal text-muted-foreground">(optional)</span>
-                    </Label>
+                    <Label htmlFor="room">Room number</Label>
                     <Input
                       id="room"
                       className="mt-2"
@@ -306,11 +336,19 @@ export function OnboardingPage() {
                       maxLength={8}
                       placeholder="e.g. 312"
                       value={room}
-                      onChange={(event) => setRoom(event.target.value)}
+                      onChange={(event) => {
+                        setRoom(event.target.value);
+                        setErrors((current) => ({ ...current, room: undefined }));
+                      }}
+                      aria-invalid={Boolean(errors.room)}
                     />
-                    <p className="mt-1.5 text-[11px] text-muted-foreground">
-                      Used by verified students for hostel handoffs.
-                    </p>
+                    {errors.room ? (
+                      <FieldError>{errors.room}</FieldError>
+                    ) : (
+                      <p className="mt-1.5 text-[11px] text-muted-foreground">
+                        Used by verified students for hostel handoffs.
+                      </p>
+                    )}
                   </div>
                 </div>
               ) : null}
@@ -385,6 +423,14 @@ export function OnboardingPage() {
                         <dd className="truncate font-bold">
                           {hostel ? `${hostel}${room ? ` · ${room}` : ''}` : '—'}
                         </dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-muted-foreground">Phone</dt>
+                        <dd className="truncate font-bold">{phone ? normalizePhone(phone) : '—'}</dd>
+                      </div>
+                      <div className="min-w-0">
+                        <dt className="text-muted-foreground">Floor</dt>
+                        <dd className="truncate font-bold">{wing || '—'}</dd>
                       </div>
                     </dl>
                   </div>

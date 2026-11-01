@@ -32,6 +32,7 @@ create table if not exists public.profiles (
   hostel text check (hostel is null or hostel in ('BH-1', 'BH-2', 'BH-3', 'GH')),
   wing text,
   room text,
+  phone text check (phone is null or phone ~ '^[6-9][0-9]{9}$'),
   upi_id text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

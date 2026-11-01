@@ -1,8 +1,8 @@
 export const HOSTELS = [
-  { value: 'BH-1', label: 'BH1 (Aryabhatta Hostel)', short: 'BH-1' },
-  { value: 'BH-2', label: 'BH2 (Bhabha Hostel)', short: 'BH-2' },
-  { value: 'BH-3', label: 'BH3 (Ramanujan Hostel)', short: 'BH-3' },
-  { value: 'GH', label: 'GH (Girls Hostel)', short: 'GH' },
+  { value: 'BH-1', label: 'Boys Hostel 1', short: 'BH-1' },
+  { value: 'BH-2', label: 'Boys Hostel 2', short: 'BH-2' },
+  { value: 'BH-3', label: 'Boys Hostel 3', short: 'BH-3' },
+  { value: 'GH', label: 'Girls Hostel', short: 'GH' },
 ] as const;
 
 export type HostelCode = (typeof HOSTELS)[number]['value'];

@@ -5,6 +5,7 @@ export interface Profile {
   hostel: string | null;
   wing: string | null;
   room: string | null;
+  phone: string | null;
   upi_id: string | null;
   created_at: string;
 }
@@ -13,7 +14,8 @@ export interface OnboardingPayload {
   full_name: string;
   hostel: string;
   wing: string;
-  room: string | null;
+  room: string;
+  phone: string;
   upi_id: string;
 }
 

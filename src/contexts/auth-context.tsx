@@ -26,7 +26,9 @@ interface AuthContextValue {
 const AuthContext = React.createContext<AuthContextValue | null>(null);
 
 export function isProfileComplete(profile: Profile | null | undefined) {
-  return Boolean(profile?.full_name && profile.hostel && profile.wing && profile.upi_id);
+  return Boolean(
+    profile?.full_name && profile.hostel && profile.wing && profile.room && profile.phone && profile.upi_id,
+  );
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {

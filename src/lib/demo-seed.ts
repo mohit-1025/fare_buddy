@@ -49,6 +49,10 @@ export const DEMO_PROFILE_IDS = {
   meera: '66666666-6666-4666-8666-666666666666',
   ishaan: '77777777-7777-4777-8777-777777777777',
   naina: '88888888-8888-4888-8888-888888888888',
+  aman: '99999911-9999-4999-8999-999999999911',
+  riyaKumari: '99999922-9999-4999-8999-999999999922',
+  rohan: '99999933-9999-4999-8999-999999999933',
+  kunal: '99999944-9999-4999-8999-999999999944',
 } as const;
 
 const seedProfiles: Array<Omit<Profile, 'created_at'> & { created_at?: string }> = [
@@ -59,6 +63,7 @@ const seedProfiles: Array<Omit<Profile, 'created_at'> & { created_at?: string }>
     hostel: 'BH-2',
     wing: 'Floor 3',
     room: '312',
+    phone: '9876500001',
     upi_id: 'aarav@okhdfcbank',
   },
   {
@@ -68,6 +73,7 @@ const seedProfiles: Array<Omit<Profile, 'created_at'> & { created_at?: string }>
     hostel: 'GH',
     wing: 'Floor 1',
     room: '104',
+    phone: '9876500002',
     upi_id: 'riya@okaxis',
   },
   {
@@ -77,6 +83,7 @@ const seedProfiles: Array<Omit<Profile, 'created_at'> & { created_at?: string }>
     hostel: 'BH-1',
     wing: 'Floor 2',
     room: '207',
+    phone: '9876500003',
     upi_id: 'kabir@oksbi',
   },
   {
@@ -86,6 +93,7 @@ const seedProfiles: Array<Omit<Profile, 'created_at'> & { created_at?: string }>
     hostel: 'GH',
     wing: 'Floor 2',
     room: '218',
+    phone: '9876500004',
     upi_id: 'ananya@okicici',
   },
   {
@@ -95,6 +103,7 @@ const seedProfiles: Array<Omit<Profile, 'created_at'> & { created_at?: string }>
     hostel: 'BH-3',
     wing: 'Floor 4',
     room: '401',
+    phone: '9876500005',
     upi_id: 'dev@okhdfcbank',
   },
   {
@@ -104,6 +113,7 @@ const seedProfiles: Array<Omit<Profile, 'created_at'> & { created_at?: string }>
     hostel: 'GH',
     wing: 'Floor 3',
     room: '309',
+    phone: '9876500006',
     upi_id: 'meera@okhdfcbank',
   },
   {
@@ -113,6 +123,7 @@ const seedProfiles: Array<Omit<Profile, 'created_at'> & { created_at?: string }>
     hostel: 'BH-3',
     wing: 'Floor 2',
     room: '216',
+    phone: '9876500007',
     upi_id: 'ishaan@oksbi',
   },
   {
@@ -122,9 +133,66 @@ const seedProfiles: Array<Omit<Profile, 'created_at'> & { created_at?: string }>
     hostel: 'GH',
     wing: 'Floor 4',
     room: '402',
+    phone: '9876500008',
     upi_id: 'naina@okaxis',
   },
+  {
+    id: DEMO_PROFILE_IDS.aman,
+    email: 'btech15072.24@bitmesra.ac.in',
+    full_name: 'Aman Raj',
+    hostel: 'BH-2',
+    wing: 'Floor 3',
+    room: '214',
+    phone: '9876500011',
+    upi_id: 'amanraj@okhdfcbank',
+  },
+  {
+    id: DEMO_PROFILE_IDS.riyaKumari,
+    email: 'btech15088.24@bitmesra.ac.in',
+    full_name: 'Riya Kumari',
+    hostel: 'GH',
+    wing: 'Floor 1',
+    room: '108',
+    phone: '9876500012',
+    upi_id: 'riya.k@icici',
+  },
+  {
+    id: DEMO_PROFILE_IDS.rohan,
+    email: 'btech15064.24@bitmesra.ac.in',
+    full_name: 'Rohan Gupta',
+    hostel: 'BH-2',
+    wing: 'Floor 2',
+    room: '207',
+    phone: '9876500013',
+    upi_id: 'rohan@oksbi',
+  },
+  {
+    id: DEMO_PROFILE_IDS.kunal,
+    email: 'btech15029.23@bitmesra.ac.in',
+    full_name: 'Kunal Singh',
+    hostel: 'BH-1',
+    wing: 'Floor 3',
+    room: '311',
+    phone: '9876500014',
+    upi_id: 'kunal@okicici',
+  },
 ];
+
+export function createSeedAccounts(): { users: DemoUserRecord[]; profiles: Profile[] } {
+  const users: DemoUserRecord[] = seedProfiles.map((profile) => ({
+    id: profile.id,
+    email: profile.email,
+    password: DEMO_PASSWORD,
+    created_at: daysAgo(120),
+  }));
+
+  const profiles: Profile[] = seedProfiles.map((profile) => ({
+    ...profile,
+    created_at: profile.created_at ?? daysAgo(120),
+  }));
+
+  return { users, profiles };
+}
 
 function sumItems(items: DeliveryPoolItem[]) {
   return items.reduce((total, item) => total + item.price * item.qty, 0);
@@ -437,17 +505,7 @@ const seedGearListings: GearListing[] = [
 ];
 
 export function createDemoDatabase(): DemoDatabase {
-  const users: DemoUserRecord[] = seedProfiles.map((profile) => ({
-    id: profile.id,
-    email: profile.email,
-    password: DEMO_PASSWORD,
-    created_at: daysAgo(120),
-  }));
-
-  const profiles: Profile[] = seedProfiles.map((profile) => ({
-    ...profile,
-    created_at: profile.created_at ?? daysAgo(120),
-  }));
+  const { users, profiles } = createSeedAccounts();
 
   const delivery_pool_items = createSeedItems();
   const delivery_pools = createSeedPools(delivery_pool_items);

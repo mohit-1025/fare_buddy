@@ -16,6 +16,7 @@ import { inr } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { BrandLockup } from '@/components/brand';
 import { ProfileMenu } from '@/components/layout/profile-menu';
+import { NotificationBell } from '@/components/notifications/notification-bell';
 import { SavingsPill } from '@/components/savings-pill';
 import { DemoToolsDock, OPEN_DEMO_TOOLS_EVENT } from '@/components/demo/demo-tools-dock';
 
@@ -70,7 +71,7 @@ export function AppShell() {
   return (
     <div className="min-h-dvh bg-background">
       <header className="sticky top-0 z-40 hidden border-b border-border/70 bg-background/85 backdrop-blur-xl lg:block">
-        <div className="page-container flex h-16 items-center justify-between gap-6">
+        <div className="page-container flex h-16 items-center justify-between gap-3">
           <NavLink to="/cart" className="shrink-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
             <BrandLockup />
           </NavLink>
@@ -82,7 +83,7 @@ export function AppShell() {
                 to={item.to}
                 className={({ isActive }) =>
                   cn(
-                    'inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[13px] font-semibold transition-colors',
+                    'inline-flex items-center gap-2 rounded-full px-3 py-2 text-[13px] font-semibold transition-colors',
                     isActive
                       ? 'bg-primary-soft text-primary-deep'
                       : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
@@ -95,10 +96,11 @@ export function AppShell() {
             ))}
           </nav>
 
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2">
             <SavingsPill amount={inr(savings.total)} label="You save" />
             <div className="h-6 w-px bg-border" />
             <ProfileMenu />
+            <NotificationBell />
           </div>
         </div>
       </header>
@@ -111,6 +113,7 @@ export function AppShell() {
           <div className="flex shrink-0 items-center gap-2">
             <SavingsPill amount={inr(savings.total)} label="You save" />
             <ProfileMenu />
+            <NotificationBell />
           </div>
         </div>
       </header>

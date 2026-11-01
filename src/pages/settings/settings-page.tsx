@@ -9,6 +9,7 @@ import {
   FlaskConical,
   Landmark,
   LogOut,
+  Phone,
   ReceiptIndianRupee,
   ShieldCheck,
   Smartphone,
@@ -124,11 +125,16 @@ export function SettingsPage() {
                 label="Hostel"
                 value={hostelLabel ?? profile?.hostel ?? '—'}
               />
-              <Detail icon={<Sparkles />} label="Wing / floor" value={profile?.wing ?? '—'} />
+              <Detail icon={<Sparkles />} label="Floor" value={profile?.wing ?? '—'} />
               <Detail
                 icon={<Smartphone />}
                 label="Room"
                 value={profile?.room ? profile.room : 'Not added'}
+              />
+              <Detail
+                icon={<Phone />}
+                label="Phone"
+                value={profile?.phone ? `+91 ${profile.phone}` : 'Not added'}
               />
               <div className="flex items-start justify-between gap-2 rounded-xl border border-border/80 bg-secondary/40 px-3 py-2.5">
                 <div className="flex min-w-0 items-start gap-2.5">

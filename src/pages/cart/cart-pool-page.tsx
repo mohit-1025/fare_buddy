@@ -19,7 +19,28 @@ import { QRCodeSVG } from 'qrcode.react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/contexts/auth-context';
+import { DEMO_PROFILE_IDS } from '@/lib/demo-seed';
+import { addNotification } from '@/lib/notifications';
+import { contactFromProfile, recordPoolHost, recordPoolJoin } from '@/lib/requests';
 import { cn } from '@/lib/utils';
 
 export type PlatformKey = 'Blinkit' | 'Zepto' | 'Instamart';
@@ -35,11 +56,13 @@ export interface PoolItem {
 }
 
 export interface PlatformPoolData {
-  platform: PlatformKey;
+  platform: string;
   tagline: string;
+  hostId: string;
   hostName: string;
   hostHostel: string;
   hostRoom: string;
+  hostPhone: string;
   hostUpi: string;
   threshold: number;
   deliveryFee: number;
@@ -54,25 +77,26 @@ export interface PlatformPoolData {
   items: PoolItem[];
 }
 
-export function CartPoolPage() {
-  const { profile } = useAuth();
+export interface StorePool extends PlatformPoolData {
+  id: string;
+  custom?: boolean;
+}
 
-  // Active Store Platform & Hostel Floor Filter
-  const [activePlatform, setActivePlatform] = React.useState<PlatformKey>('Blinkit');
-  const [selectedHostel] = React.useState<string>(profile?.hostel || 'BH-2');
-  const [selectedFloor] = React.useState<string>('Floor 3');
+const OTHER_SERVICE = 'Other';
+type CreateErrors = Partial<Record<'service' | 'threshold' | 'charges', string>>;
 
-  // Interactive QR Code Modal
-  const [showQR, setShowQR] = React.useState(false);
+const DEFAULT_SERVICES: PlatformKey[] = ['Blinkit', 'Zepto', 'Instamart'];
 
-  // Separate, independent cart state for EACH platform to solve the "same cart" problem
-  const [pools, setPools] = React.useState<Record<PlatformKey, PlatformPoolData>>({
-    Blinkit: {
+const INITIAL_POOLS: StorePool[] = [
+    {
+      id: 'blinkit',
       platform: 'Blinkit',
       tagline: 'Late-Night Maggie, Munchies & Dairy',
+      hostId: DEMO_PROFILE_IDS.aman,
       hostName: 'Aman Raj',
       hostHostel: 'BH-2',
       hostRoom: '214',
+      hostPhone: '9876500011',
       hostUpi: 'amanraj@okhdfcbank',
       threshold: 149,
       deliveryFee: 35,
@@ -89,12 +113,15 @@ export function CartPoolPage() {
         { id: 'b2', name: 'Amul Taaza Toned Milk (500ml)', price: 28, qty: 1, addedBy: 'Aarav Sharma', hostel: 'BH-2', room: '312' },
       ],
     },
-    Zepto: {
+    {
+      id: 'zepto',
       platform: 'Zepto',
       tagline: '10-Min Lightning Drinks & Protein Run',
+      hostId: DEMO_PROFILE_IDS.kabir,
       hostName: 'Kabir Singh',
       hostHostel: 'BH-2',
       hostRoom: '318',
+      hostPhone: '9876500003',
       hostUpi: 'kabir@oksbi',
       threshold: 149,
       deliveryFee: 30,
@@ -111,12 +138,15 @@ export function CartPoolPage() {
         { id: 'z2', name: 'Britannia 100% Whole Wheat Bread (400g)', price: 35, qty: 1, addedBy: 'Rohan Gupta', hostel: 'BH-2', room: '207' },
       ],
     },
-    Instamart: {
+    {
+      id: 'instamart',
       platform: 'Instamart',
       tagline: 'Swiggy Instamart Hostel Feast & Treats',
+      hostId: DEMO_PROFILE_IDS.riyaKumari,
       hostName: 'Riya Kumari',
       hostHostel: 'GH',
       hostRoom: '108',
+      hostPhone: '9876500012',
       hostUpi: 'riya.k@icici',
       threshold: 199,
       deliveryFee: 40,
@@ -134,65 +164,244 @@ export function CartPoolPage() {
         { id: 'i3', name: 'Cadbury Dairy Milk Silk Chocolate (60g)', price: 75, qty: 1, addedBy: 'Meera Nair', hostel: 'GH', room: '309' },
       ],
     },
+];
+
+export function CartPoolPage() {
+  const { profile } = useAuth();
+
+  // Active Store Platform & Hostel Floor Filter
+  const [selectedHostel] = React.useState<string>(profile?.hostel || 'BH-2');
+  const [selectedFloor] = React.useState<string>('Floor 3');
+
+  // Interactive QR Code Modal
+  const [showQR, setShowQR] = React.useState(false);
+
+  // Separate, independent cart state for EACH store to solve the "same cart" problem
+  const [pools, setPools] = React.useState<StorePool[]>(INITIAL_POOLS);
+
+  // Each store's pooling window closes on its own countdown
+  const [deadlines, setDeadlines] = React.useState<Record<string, number>>(() => {
+    const start = Date.now();
+    return INITIAL_POOLS.reduce(
+      (acc, pool) => ({
+        ...acc,
+        [pool.id]: start + (pool.timerMinutes * 60 + pool.timerSeconds) * 1000,
+      }),
+      {} as Record<string, number>,
+    );
+  });
+  const [now, setNow] = React.useState(() => Date.now());
+
+  React.useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const [activePoolId, setActivePoolId] = React.useState<string>(INITIAL_POOLS[0].id);
+
+  const livePools = pools.filter((pool) => (deadlines[pool.id] ?? 0) > now);
+  const secondsLeft = (id: string) =>
+    Math.max(0, Math.ceil(((deadlines[id] ?? 0) - now) / 1000));
+  const formatWindow = (id: string) => {
+    const total = secondsLeft(id);
+    return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+  };
+
+  const currentPool =
+    livePools.find((pool) => pool.id === activePoolId) ?? livePools[0] ?? null;
+
+  // Stores whose list has closed — the create-pool dialog offers these again
+  const closedServices = DEFAULT_SERVICES.filter(
+    (service) => !livePools.some((pool) => pool.id === service.toLowerCase()),
+  );
+
+  const liveRef = React.useRef<string[]>(INITIAL_POOLS.map((pool) => pool.id));
+  React.useEffect(() => {
+    liveRef.current
+      .filter((id) => !livePools.some((pool) => pool.id === id))
+      .forEach((id) => {
+        const name = pools.find((pool) => pool.id === id)?.platform ?? id;
+        toast.info(`${name} pool window closed`, {
+          description: `The ${name} cart was removed from the ${selectedHostel} ${selectedFloor} list.`,
+        });
+      });
+    liveRef.current = livePools.map((pool) => pool.id);
   });
 
   // New Item Input State
   const [newItemName, setNewItemName] = React.useState('');
   const [newItemPrice, setNewItemPrice] = React.useState('');
-  const [targetPlatform, setTargetPlatform] = React.useState<PlatformKey>(activePlatform);
+  const [targetPoolId, setTargetPoolId] = React.useState<string>(INITIAL_POOLS[0].id);
 
-  // Sync target platform when active tab changes if user hasn't explicitly changed it
+  // Sync target pool when active tab changes if user hasn't explicitly changed it
   React.useEffect(() => {
-    setTargetPlatform(activePlatform);
-  }, [activePlatform]);
+    if (currentPool) setTargetPoolId(currentPool.id);
+  }, [currentPool]);
 
-  // Current Active Pool Data
-  const currentPool = pools[activePlatform];
-  const currentTotal = currentPool.items.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const remaining = Math.max(0, currentPool.threshold - currentTotal);
-  const isUnlocked = currentTotal >= currentPool.threshold;
+  const addTarget = livePools.find((pool) => pool.id === targetPoolId) ?? livePools[0] ?? null;
 
-  // Compute status for all 3 pools for the smart comparator
-  const poolMetrics = React.useMemo(() => {
-    return (Object.keys(pools) as PlatformKey[]).map((key) => {
-      const p = pools[key];
-      const total = p.items.reduce((sum, i) => sum + i.price * i.qty, 0);
-      const rem = Math.max(0, p.threshold - total);
-      const percent = Math.min(100, Math.round((total / p.threshold) * 100));
-      const unlocked = total >= p.threshold;
-      return {
-        key,
-        total,
-        rem,
-        percent,
-        unlocked,
-        itemCount: p.items.length,
-        peopleCount: new Set(p.items.map((i) => i.addedBy)).size,
-      };
-    });
-  }, [pools]);
+  const currentTotal = currentPool
+    ? currentPool.items.reduce((sum, item) => sum + item.price * item.qty, 0)
+    : 0;
+  const remaining = currentPool ? Math.max(0, currentPool.threshold - currentTotal) : 0;
+  const isUnlocked = currentPool ? currentTotal >= currentPool.threshold : false;
+
+  // Live pool status for the smart comparator — closed pools drop out of the page
+  const poolMetrics = livePools.map((pool) => {
+    const total = pool.items.reduce((sum, i) => sum + i.price * i.qty, 0);
+    const rem = Math.max(0, pool.threshold - total);
+    const percent = Math.min(100, Math.round((total / pool.threshold) * 100));
+    const unlocked = total >= pool.threshold;
+    return {
+      pool,
+      total,
+      rem,
+      percent,
+      unlocked,
+      itemCount: pool.items.length,
+      peopleCount: new Set(pool.items.map((i) => i.addedBy)).size,
+    };
+  });
 
   // Find the smartest pool to recommend (closest to threshold or unlocked)
-  const smartRecommendation = React.useMemo(() => {
+  const smartRecommendation = (() => {
     const unlocked = poolMetrics.find((p) => p.unlocked);
     if (unlocked) {
       return {
-        bestKey: unlocked.key,
-        message: `${unlocked.key} pool has hit its ₹${pools[unlocked.key].threshold} threshold! Free delivery is UNLOCKED for everyone.`,
-        actionLabel: `View ${unlocked.key} Cart`,
+        bestId: unlocked.pool.id,
+        message: `${unlocked.pool.platform} pool has hit its ₹${unlocked.pool.threshold} threshold! Free delivery is UNLOCKED for everyone.`,
+        actionLabel: `View ${unlocked.pool.platform} Cart`,
       };
     }
     const closest = [...poolMetrics].sort((a, b) => a.rem - b.rem)[0];
+    if (!closest) return null;
     return {
-      bestKey: closest.key,
-      message: `${closest.key} is closest to free delivery — only ₹${closest.rem} needed to waive all fees!`,
-      actionLabel: `Join ${closest.key} Pool`,
+      bestId: closest.pool.id,
+      message: `${closest.pool.platform} is closest to free delivery — only ₹${closest.rem} needed to waive all fees!`,
+      actionLabel: `Join ${closest.pool.platform} Pool`,
     };
-  }, [poolMetrics, pools]);
+  })();
+
+  // Create-pool dialog state
+  const [createOpen, setCreateOpen] = React.useState(false);
+  const [newService, setNewService] = React.useState<string>(closedServices[0] ?? OTHER_SERVICE);
+  const [customService, setCustomService] = React.useState('');
+  const [newThreshold, setNewThreshold] = React.useState('');
+  const [newCharges, setNewCharges] = React.useState('');
+  const [createErrors, setCreateErrors] = React.useState<CreateErrors>({});
+
+  const openCreatePool = () => {
+    setNewService(closedServices[0] ?? OTHER_SERVICE);
+    setCustomService('');
+    setNewThreshold('');
+    setNewCharges('');
+    setCreateErrors({});
+    setCreateOpen(true);
+  };
+
+  const handleCreatePool = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!profile) return;
+
+    const thresholdNum = Number(newThreshold);
+    const chargesNum = Number(newCharges);
+    const serviceName = newService === OTHER_SERVICE ? customService.trim() : newService;
+    const nextErrors: CreateErrors = {};
+
+    if (!serviceName) nextErrors.service = 'Enter the service name';
+    else if (
+      livePools.some(
+        (pool) => pool.platform.toLowerCase() === serviceName.toLowerCase(),
+      )
+    )
+      nextErrors.service = 'That store already has an active pool';
+    if (!Number.isFinite(thresholdNum) || thresholdNum <= 0)
+      nextErrors.threshold = 'Enter the minimum threshold';
+    if (newCharges.trim() === '' || !Number.isFinite(chargesNum) || chargesNum < 0)
+      nextErrors.charges = 'Enter the extra charges (0 for none)';
+
+    setCreateErrors(nextErrors);
+    if (Object.keys(nextErrors).length) return;
+
+    const host = contactFromProfile(profile);
+    const hostUpi =
+      profile.upi_id ??
+      `${(profile.full_name ?? 'hostel').toLowerCase().replace(/[^a-z0-9]/g, '')}@upi`;
+    const windowMinutes = 15;
+    const existing = closedServices.includes(serviceName as PlatformKey)
+      ? pools.find((pool) => !pool.custom && pool.platform === serviceName)
+      : undefined;
+    const poolId = existing?.id ?? crypto.randomUUID();
+
+    const reopened: StorePool = existing
+      ? {
+          ...existing,
+          hostId: host.userId,
+          hostName: host.name,
+          hostHostel: host.hostel ?? selectedHostel,
+          hostRoom: host.room ?? '',
+          hostPhone: host.phone ?? '',
+          hostUpi,
+          threshold: Math.round(thresholdNum),
+          deliveryFee: Math.round(chargesNum),
+          smallOrderFee: 0,
+          handlingFee: 0,
+          timerMinutes: windowMinutes,
+          timerSeconds: 0,
+          items: [],
+        }
+      : {
+          id: poolId,
+          custom: true,
+          platform: serviceName,
+          tagline: `${serviceName} hostel pool`,
+          hostId: host.userId,
+          hostName: host.name,
+          hostHostel: host.hostel ?? selectedHostel,
+          hostRoom: host.room ?? '',
+          hostPhone: host.phone ?? '',
+          hostUpi,
+          threshold: Math.round(thresholdNum),
+          deliveryFee: Math.round(chargesNum),
+          smallOrderFee: 0,
+          handlingFee: 0,
+          timerMinutes: windowMinutes,
+          timerSeconds: 0,
+          badgeBg: 'bg-slate-50',
+          badgeBorder: 'border-slate-200',
+          badgeText: 'text-slate-900',
+          accentColor: 'text-slate-700',
+          items: [],
+        };
+
+    setPools((prev) =>
+      existing
+        ? prev.map((pool) => (pool.id === existing.id ? reopened : pool))
+        : [...prev, reopened],
+    );
+    setDeadlines((prev) => ({ ...prev, [poolId]: Date.now() + windowMinutes * 60_000 }));
+    setActivePoolId(poolId);
+    recordPoolHost({
+      kind: 'cart',
+      poolId,
+      poolLabel: `${serviceName} floor pool`,
+      detail: `${selectedHostel} · ${selectedFloor}`,
+      href: '/cart',
+      host,
+    });
+    toast.success(`${serviceName} pool opened`, {
+      description: `₹${Math.round(thresholdNum)} threshold · ₹${Math.round(chargesNum)} extra charges · ${windowMinutes}:00 window`,
+    });
+    setCreateOpen(false);
+  };
 
   // Handle adding an item to a specific platform cart
   const handleAddItem = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!addTarget) {
+      toast.error('All pool windows have closed');
+      return;
+    }
     const priceNum = parseFloat(newItemPrice);
     if (!newItemName.trim() || isNaN(priceNum) || priceNum <= 0) {
       toast.error('Please enter a valid item name and positive price');
@@ -200,7 +409,7 @@ export function CartPoolPage() {
     }
 
     const newItem: PoolItem = {
-      id: `${targetPlatform.toLowerCase()}-${Date.now()}`,
+      id: `${addTarget.id}-${Date.now()}`,
       name: newItemName.trim(),
       price: priceNum,
       qty: 1,
@@ -209,80 +418,108 @@ export function CartPoolPage() {
       room: profile?.room || '312',
     };
 
-    setPools((prev) => ({
-      ...prev,
-      [targetPlatform]: {
-        ...prev[targetPlatform],
-        items: [...prev[targetPlatform].items, newItem],
-      },
-    }));
+    const target = addTarget;
+    setPools((prev) =>
+      prev.map((pool) =>
+        pool.id === target.id ? { ...pool, items: [...pool.items, newItem] } : pool,
+      ),
+    );
 
     setNewItemName('');
     setNewItemPrice('');
-    toast.success(`Added "${newItem.name}" to ${targetPlatform} pool (+₹${newItem.price})`);
-    setActivePlatform(targetPlatform);
+    toast.success(`Added "${newItem.name}" to ${target.platform} pool (+₹${newItem.price})`);
+    if (profile?.id && target.hostId !== profile.id) {
+      recordPoolJoin({
+        kind: 'cart',
+        poolId: target.id,
+        poolLabel: `${target.platform} floor pool`,
+        detail: `${selectedHostel} · ${selectedFloor}`,
+        href: '/cart',
+        host: {
+          userId: target.hostId,
+          name: target.hostName,
+          phone: target.hostPhone,
+          hostel: target.hostHostel,
+          room: target.hostRoom,
+        },
+        member: contactFromProfile(profile),
+      });
+    }
+    if (profile?.id) {
+      addNotification(profile.id, {
+        kind: 'cart',
+        title: `Added to the ${target.platform} pool`,
+        body: `${newItem.name} · ₹${newItem.price}. You'll be pinged when the pool locks.`,
+        href: '/cart',
+      });
+    }
+    setActivePoolId(target.id);
   };
 
-  // Move an item from one platform to another (Cart consolidation)
-  const handleMoveItem = (itemId: string, sourcePlatform: PlatformKey, destPlatform: PlatformKey) => {
-    if (sourcePlatform === destPlatform) return;
+  // Move an item from one store pool to another (Cart consolidation)
+  const handleMoveItem = (itemId: string, sourceId: string, destId: string) => {
+    if (sourceId === destId) return;
 
-    const itemToMove = pools[sourcePlatform].items.find((i) => i.id === itemId);
-    if (!itemToMove) return;
+    const source = pools.find((pool) => pool.id === sourceId);
+    const dest = pools.find((pool) => pool.id === destId);
+    const itemToMove = source?.items.find((i) => i.id === itemId);
+    if (!itemToMove || !dest) return;
 
-    setPools((prev) => ({
-      ...prev,
-      [sourcePlatform]: {
-        ...prev[sourcePlatform],
-        items: prev[sourcePlatform].items.filter((i) => i.id !== itemId),
-      },
-      [destPlatform]: {
-        ...prev[destPlatform],
-        items: [...prev[destPlatform].items, itemToMove],
-      },
-    }));
+    setPools((prev) =>
+      prev.map((pool) => {
+        if (pool.id === sourceId) {
+          return { ...pool, items: pool.items.filter((i) => i.id !== itemId) };
+        }
+        if (pool.id === destId) {
+          return { ...pool, items: [...pool.items, itemToMove] };
+        }
+        return pool;
+      }),
+    );
 
-    toast.success(`Moved "${itemToMove.name}" to ${destPlatform} pool!`);
+    toast.success(`Moved "${itemToMove.name}" to ${dest.platform} pool!`);
   };
 
   // Adjust item quantity
   const handleUpdateQty = (itemId: string, delta: number) => {
-    setPools((prev) => {
-      const updatedItems = prev[activePlatform].items
-        .map((item) => {
-          if (item.id === itemId) {
-            const nextQty = item.qty + delta;
-            return nextQty > 0 ? { ...item, qty: nextQty } : null;
-          }
-          return item;
-        })
-        .filter(Boolean) as PoolItem[];
-
-      return {
-        ...prev,
-        [activePlatform]: {
-          ...prev[activePlatform],
-          items: updatedItems,
-        },
-      };
-    });
+    if (!currentPool) return;
+    const poolId = currentPool.id;
+    setPools((prev) =>
+      prev.map((pool) => {
+        if (pool.id !== poolId) return pool;
+        const updatedItems = pool.items
+          .map((item) => {
+            if (item.id === itemId) {
+              const nextQty = item.qty + delta;
+              return nextQty > 0 ? { ...item, qty: nextQty } : null;
+            }
+            return item;
+          })
+          .filter(Boolean) as PoolItem[];
+        return { ...pool, items: updatedItems };
+      }),
+    );
   };
 
   // Remove an item
   const handleRemoveItem = (itemId: string) => {
+    if (!currentPool) return;
+    const poolId = currentPool.id;
     const item = currentPool.items.find((i) => i.id === itemId);
-    setPools((prev) => ({
-      ...prev,
-      [activePlatform]: {
-        ...prev[activePlatform],
-        items: prev[activePlatform].items.filter((i) => i.id !== itemId),
-      },
-    }));
-    toast.info(`Removed "${item?.name}" from ${activePlatform} pool`);
+    setPools((prev) =>
+      prev.map((pool) =>
+        pool.id === poolId
+          ? { ...pool, items: pool.items.filter((i) => i.id !== itemId) }
+          : pool,
+      ),
+    );
+    toast.info(`Removed "${item?.name}" from ${currentPool.platform} pool`);
   };
 
   // UPI payment payload
-  const upiUri = `upi://pay?pa=${encodeURIComponent(currentPool.hostUpi)}&pn=${encodeURIComponent(currentPool.hostName)}&am=${encodeURIComponent(currentTotal)}&cu=INR`;
+  const upiUri = currentPool
+    ? `upi://pay?pa=${encodeURIComponent(currentPool.hostUpi)}&pn=${encodeURIComponent(currentPool.hostName)}&am=${encodeURIComponent(currentTotal)}&cu=INR`
+    : '';
 
   return (
     <div className="page-stack font-sans text-slate-900">
@@ -304,33 +541,35 @@ export function CartPoolPage() {
       />
 
       {/* 2. Smart Recommendation Banner (Solves Fragmented Carts Across Apps) */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-50 via-emerald-50/70 to-teal-50 p-4 text-emerald-950 shadow-xs">
-        <div className="flex items-center gap-3">
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
-            <Zap className="h-5 w-5" />
-          </span>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[11px] font-extrabold uppercase tracking-wider text-emerald-800">
-                Floor Pool Intelligence
-              </span>
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+      {smartRecommendation ? (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-50 via-emerald-50/70 to-teal-50 p-4 text-emerald-950 shadow-xs">
+          <div className="flex items-center gap-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-600 text-white shadow-xs">
+              <Zap className="h-5 w-5" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-[11px] font-extrabold uppercase tracking-wider text-emerald-800">
+                  Floor Pool Intelligence
+                </span>
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-ping"></span>
+              </div>
+              <p className="text-[13px] font-bold text-slate-900 leading-snug">
+                {smartRecommendation.message}
+              </p>
             </div>
-            <p className="text-[13px] font-bold text-slate-900 leading-snug">
-              {smartRecommendation.message}
-            </p>
           </div>
-        </div>
 
-        <button
-          type="button"
-          onClick={() => setActivePlatform(smartRecommendation.bestKey)}
-          className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 font-mono text-[12px] font-bold text-white shadow-xs transition-all hover:bg-emerald-800 active:scale-[0.98]"
-        >
-          <span>{smartRecommendation.actionLabel}</span>
-          <ArrowRight className="h-3.5 w-3.5" />
-        </button>
-      </div>
+          <button
+            type="button"
+            onClick={() => setActivePoolId(smartRecommendation.bestId)}
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-emerald-700 px-3.5 py-2 font-mono text-[12px] font-bold text-white shadow-xs transition-all hover:bg-emerald-800 active:scale-[0.98]"
+          >
+            <span>{smartRecommendation.actionLabel}</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : null}
 
       {/* 3. Multi-Store Dashboard Snapshot (3 Independent Live Carts) */}
       <div>
@@ -347,15 +586,31 @@ export function CartPoolPage() {
         </div>
 
         <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
+          {poolMetrics.length === 0 ? (
+            <div className="stitch-card col-span-full bg-white py-8 text-center">
+              <p className="text-[13px] font-bold text-slate-700">All store pool windows have closed</p>
+              <p className="mt-1 text-[11.5px] text-slate-500">
+                Blinkit, Zepto, and Instamart carts are cleared from this floor list. Create a pool
+                to reopen a store or start a custom service.
+              </p>
+              <button
+                type="button"
+                onClick={openCreatePool}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-emerald-700 px-4 py-2 font-mono text-[12px] font-bold text-white shadow-xs transition-all hover:bg-emerald-800 active:scale-[0.98]"
+              >
+                <Plus className="h-4 w-4" /> Create a pool
+              </button>
+            </div>
+          ) : null}
           {poolMetrics.map((metric) => {
-            const p = pools[metric.key];
-            const isActive = activePlatform === metric.key;
+            const p = metric.pool;
+            const isActive = currentPool?.id === p.id;
 
             return (
               <button
-                key={metric.key}
+                key={p.id}
                 type="button"
-                onClick={() => setActivePlatform(metric.key)}
+                onClick={() => setActivePoolId(p.id)}
                 className={cn(
                   'stitch-card relative flex flex-col justify-between text-left transition-all p-4',
                   isActive
@@ -373,10 +628,15 @@ export function CartPoolPage() {
                         'border border-slate-200/60',
                       )}
                     >
-                      {metric.key}
+                      {p.platform}
                     </span>
-                    <span className="flex items-center gap-1 font-mono text-[11px] font-semibold text-slate-500">
-                      <Clock className="h-3 w-3" /> {p.timerMinutes}:{String(p.timerSeconds).padStart(2, '0')}
+                    <span
+                      className={cn(
+                        'flex items-center gap-1 font-mono text-[11px] font-semibold',
+                        secondsLeft(p.id) <= 60 ? 'text-red-600' : 'text-slate-500',
+                      )}
+                    >
+                      <Clock className="h-3 w-3" /> {formatWindow(p.id)}
                     </span>
                   </div>
 
@@ -418,11 +678,30 @@ export function CartPoolPage() {
               </button>
             );
           })}
+          {poolMetrics.length > 0 && closedServices.length > 0 ? (
+            <button
+              type="button"
+              onClick={openCreatePool}
+              className="stitch-card flex min-h-[160px] flex-col items-center justify-center gap-1.5 border-2 border-dashed border-emerald-500/40 bg-emerald-50/40 p-4 text-center transition-all hover:bg-emerald-50 active:scale-[0.99]"
+            >
+              <span className="grid h-9 w-9 place-items-center rounded-xl bg-white text-emerald-700 shadow-xs">
+                <Plus className="h-5 w-5" />
+              </span>
+              <span className="text-[13px] font-extrabold text-emerald-900">Create a pool</span>
+              <span className="text-[11px] font-medium leading-snug text-emerald-800/80">
+                {closedServices.length === 1
+                  ? `${closedServices[0]} list is`
+                  : `${closedServices.length} store lists are`}{' '}
+                closed — reopen one or add a custom service.
+              </span>
+            </button>
+          ) : null}
         </div>
       </div>
 
       {/* 4. Active Pool Inspector (Dedicated Items, Move Feature, Add Form & Split) */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      {currentPool ? (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
         {/* Left: Store Line Items & Item Entry (8 cols) */}
         <div className="space-y-5 lg:col-span-8">
           <div className="stitch-card bg-white p-5 sm:p-6">
@@ -437,7 +716,7 @@ export function CartPoolPage() {
                       currentPool.badgeText,
                     )}
                   >
-                    {activePlatform} Pool
+                    {currentPool.platform} Pool
                   </span>
                   <span className="tag-hostel">
                     Host: {currentPool.hostName} ({currentPool.hostHostel} #{currentPool.hostRoom})
@@ -450,7 +729,7 @@ export function CartPoolPage() {
 
               <div className="flex items-center gap-2">
                 <span className="tag-timer">
-                  <Clock className="h-3 w-3" /> {currentPool.timerMinutes}:{String(currentPool.timerSeconds).padStart(2, '0')} window left
+                  <Clock className="h-3 w-3" /> {formatWindow(currentPool.id)} window left
                 </span>
               </div>
             </div>
@@ -487,7 +766,7 @@ export function CartPoolPage() {
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-[13px] font-extrabold text-slate-900 uppercase tracking-wider font-mono">
-                  Items in {activePlatform} Cart ({currentPool.items.length})
+                  Items in {currentPool.platform} Cart ({currentPool.items.length})
                 </h4>
                 <span className="text-[11px] text-slate-500 font-medium">
                   Have an item in the wrong cart? Tap "Move" to transfer it.
@@ -498,7 +777,7 @@ export function CartPoolPage() {
                 <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center">
                   <ShoppingCart className="mx-auto h-8 w-8 text-slate-300" />
                   <p className="mt-2 text-[13px] font-bold text-slate-600">
-                    No items in this {activePlatform} cart yet.
+                    No items in this {currentPool.platform} cart yet.
                   </p>
                   <p className="text-[11px] text-slate-400">
                     Be the first to add an item below or transfer from another store pool!
@@ -553,18 +832,18 @@ export function CartPoolPage() {
 
                       {/* Cross-Store Move Menu */}
                       <div className="flex items-center gap-1">
-                        {(['Blinkit', 'Zepto', 'Instamart'] as PlatformKey[])
-                          .filter((p) => p !== activePlatform)
+                        {livePools
+                          .filter((pool) => pool.id !== currentPool.id)
                           .map((target) => (
                             <button
-                              key={target}
+                              key={target.id}
                               type="button"
-                              onClick={() => handleMoveItem(item.id, activePlatform, target)}
+                              onClick={() => handleMoveItem(item.id, currentPool.id, target.id)}
                               className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 font-mono text-[10.5px] font-bold text-slate-700 hover:bg-slate-100 transition-colors shadow-xs"
-                              title={`Move this item to ${target} cart`}
+                              title={`Move this item to ${target.platform} cart`}
                             >
                               <MoveRight className="h-3 w-3 text-slate-400" />
-                              <span>{target}</span>
+                              <span>{target.platform}</span>
                             </button>
                           ))}
                       </div>
@@ -596,13 +875,15 @@ export function CartPoolPage() {
                   <div className="sm:col-span-3">
                     <label className="mb-1 block text-[11px] font-bold text-slate-600">Store</label>
                     <select
-                      value={targetPlatform}
-                      onChange={(e) => setTargetPlatform(e.target.value as PlatformKey)}
+                      value={addTarget?.id ?? ''}
+                      onChange={(e) => setTargetPoolId(e.target.value)}
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[13px] font-bold text-slate-800 focus:border-emerald-600 focus:bg-white focus:outline-none"
                     >
-                      <option value="Blinkit">Blinkit</option>
-                      <option value="Zepto">Zepto</option>
-                      <option value="Instamart">Instamart</option>
+                      {livePools.map((pool) => (
+                        <option key={pool.id} value={pool.id}>
+                          {pool.platform}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -640,7 +921,7 @@ export function CartPoolPage() {
                     type="submit"
                     className="flex items-center gap-1.5 rounded-xl bg-emerald-700 px-5 py-2.5 font-mono text-[12.5px] font-bold text-white shadow-sm transition-all hover:bg-emerald-800 active:scale-[0.98]"
                   >
-                    <Plus className="h-4 w-4" /> Add to {targetPlatform} Cart
+                    <Plus className="h-4 w-4" /> Add to {addTarget?.platform} Cart
                   </button>
                 </div>
               </form>
@@ -653,7 +934,7 @@ export function CartPoolPage() {
           <div className="stitch-card bg-white p-5">
             <div className="flex items-center justify-between">
               <h3 className="text-[15px] font-extrabold text-slate-900">
-                {activePlatform} Split Summary
+                {currentPool.platform} Split Summary
               </h3>
               <span className="tag-inr">₹0 Fee Mode</span>
             </div>
@@ -750,9 +1031,9 @@ export function CartPoolPage() {
             <button
               type="button"
               onClick={() => {
-                const text = `🛒 *${activePlatform} Pool on ${selectedHostel} ${selectedFloor}*:\nTotal: ₹${currentTotal}/₹${currentPool.threshold} (${isUnlocked ? 'FREE DELIVERY UNLOCKED!' : `₹${remaining} needed`})\nItems: ${currentPool.items.map((i) => i.name).join(', ')}\nJoin before timer runs out!`;
+                const text = `🛒 *${currentPool.platform} Pool on ${selectedHostel} ${selectedFloor}*:\nTotal: ₹${currentTotal}/₹${currentPool.threshold} (${isUnlocked ? 'FREE DELIVERY UNLOCKED!' : `₹${remaining} needed`})\nItems: ${currentPool.items.map((i) => i.name).join(', ')}\nJoin before timer runs out!`;
                 if (navigator.share) {
-                  navigator.share({ title: `${activePlatform} Hostel Pool`, text });
+                  navigator.share({ title: `${currentPool.platform} Hostel Pool`, text });
                 } else {
                   navigator.clipboard.writeText(text);
                   toast.success('Pool summary copied to clipboard! Share on WhatsApp.');
@@ -764,7 +1045,126 @@ export function CartPoolPage() {
             </button>
           </div>
         </div>
-      </div>
+        </div>
+      ) : null}
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create a floor pool</DialogTitle>
+            <DialogDescription>
+              Reopen a store whose list has closed on {selectedHostel} {selectedFloor}, or start a
+              custom service. You host the pool and set the fee that is waived at the threshold.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleCreatePool} className="space-y-4" noValidate>
+            <div>
+              <Label htmlFor="create-service">Service</Label>
+              <Select
+                value={newService}
+                onValueChange={(value) => {
+                  setNewService(value);
+                  setCreateErrors((current) => ({ ...current, service: undefined }));
+                }}
+              >
+                <SelectTrigger id="create-service" className="mt-2">
+                  <SelectValue placeholder="Pick a closed service" />
+                </SelectTrigger>
+                <SelectContent>
+                  {closedServices.map((service) => (
+                    <SelectItem key={service} value={service}>
+                      {service} — list closed
+                    </SelectItem>
+                  ))}
+                  <SelectItem value={OTHER_SERVICE}>Other service…</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {newService === OTHER_SERVICE ? (
+              <div>
+                <Label htmlFor="create-custom-service">Service name</Label>
+                <Input
+                  id="create-custom-service"
+                  className="mt-2"
+                  placeholder="e.g. DMart Ready or BigBasket"
+                  value={customService}
+                  onChange={(event) => {
+                    setCustomService(event.target.value);
+                    setCreateErrors((current) => ({ ...current, service: undefined }));
+                  }}
+                  aria-invalid={Boolean(createErrors.service)}
+                />
+                {createErrors.service ? (
+                  <p className="mt-1.5 text-[11.5px] font-semibold text-destructive">
+                    {createErrors.service}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="create-threshold">Minimum threshold (₹)</Label>
+                <Input
+                  id="create-threshold"
+                  className="mt-2"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  placeholder="149"
+                  value={newThreshold}
+                  onChange={(event) => {
+                    setNewThreshold(event.target.value);
+                    setCreateErrors((current) => ({ ...current, threshold: undefined }));
+                  }}
+                  aria-invalid={Boolean(createErrors.threshold)}
+                />
+                {createErrors.threshold ? (
+                  <p className="mt-1.5 text-[11.5px] font-semibold text-destructive">
+                    {createErrors.threshold}
+                  </p>
+                ) : null}
+              </div>
+              <div>
+                <Label htmlFor="create-charges">Extra charges (₹)</Label>
+                <Input
+                  id="create-charges"
+                  className="mt-2"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  placeholder="30"
+                  value={newCharges}
+                  onChange={(event) => {
+                    setNewCharges(event.target.value);
+                    setCreateErrors((current) => ({ ...current, charges: undefined }));
+                  }}
+                  aria-invalid={Boolean(createErrors.charges)}
+                />
+                {createErrors.charges ? (
+                  <p className="mt-1.5 text-[11.5px] font-semibold text-destructive">
+                    {createErrors.charges}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+
+            <p className="text-[11.5px] leading-relaxed text-slate-500">
+              The extra charges are waived for everyone once the pooled cart crosses the threshold.
+              Your pool opens with a 15:00 window.
+            </p>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit">Create pool</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
