@@ -149,7 +149,7 @@ export const backend = {
         email: normalized,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
         },
       });
       if (error) throw new Error(friendlyAuthError(error.message));
@@ -198,7 +198,7 @@ export const backend = {
       const { error } = await client.auth.signInWithOtp({
         email: normalized,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}${import.meta.env.BASE_URL}`,
           shouldCreateUser: true,
         },
       });

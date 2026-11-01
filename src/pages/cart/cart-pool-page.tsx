@@ -2,27 +2,17 @@ import * as React from 'react';
 import {
   AlertCircle,
   ArrowRight,
-  ArrowUpDown,
-  Check,
   CheckCircle2,
   Clock,
   Copy,
-  ExternalLink,
-  Flame,
   Minus,
   MoveRight,
   Plus,
   QrCode,
-  RefreshCw,
   Share2,
   ShoppingBag,
   ShoppingCart,
-  Sparkles,
-  Tag,
   Trash2,
-  TrendingUp,
-  Users,
-  X,
   Zap,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -30,7 +20,6 @@ import { toast } from 'sonner';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/auth-context';
-import { HOSTELS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
 
 export type PlatformKey = 'Blinkit' | 'Zepto' | 'Instamart';
@@ -70,8 +59,8 @@ export function CartPoolPage() {
 
   // Active Store Platform & Hostel Floor Filter
   const [activePlatform, setActivePlatform] = React.useState<PlatformKey>('Blinkit');
-  const [selectedHostel, setSelectedHostel] = React.useState<string>(profile?.hostel || 'BH-2');
-  const [selectedFloor, setSelectedFloor] = React.useState<string>('Floor 3');
+  const [selectedHostel] = React.useState<string>(profile?.hostel || 'BH-2');
+  const [selectedFloor] = React.useState<string>('Floor 3');
 
   // Interactive QR Code Modal
   const [showQR, setShowQR] = React.useState(false);

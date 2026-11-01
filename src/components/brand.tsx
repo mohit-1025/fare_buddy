@@ -43,7 +43,7 @@ export function BrandLockup({ className, compact = false }: { className?: string
 export function BrandLogoFull({ className }: { className?: string }) {
   return (
     <img
-      src="/farebuddy-logo.svg"
+      src={`${import.meta.env.BASE_URL}farebuddy-logo.svg`}
       alt="FareBuddy Logo"
       className={cn('h-8 w-auto', className)}
     />
