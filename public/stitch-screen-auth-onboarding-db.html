@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <meta content="web_blank" name="shell-type"/>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <title>FareBuddy - Auth, Onboarding & Database (Stitch Screen)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com" rel="preconnect"/>
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#006948",
+            "primary-container": "#00855d",
+            "primary-fixed": "#85f8c4",
+            "primary-fixed-dim": "#68dba9",
+            "on-primary": "#ffffff",
+            "on-primary-fixed": "#002114",
+            "secondary": "#904d00",
+            "secondary-container": "#fe932c",
+            "secondary-fixed": "#ffdcc3",
+            "tertiary": "#0051d5",
+            "surface": "#faf8ff",
+            "surface-container-low": "#f2f3ff",
+            "surface-container": "#eaedff",
+            "surface-container-high": "#e2e7ff",
+            "surface-container-lowest": "#ffffff",
+            "on-surface": "#131b2e",
+            "on-surface-variant": "#3d4a42",
+            "outline": "#6d7a72"
+          },
+          fontFamily: {
+            "headline": ["Plus Jakarta Sans", "sans-serif"],
+            "body": ["Plus Jakarta Sans", "sans-serif"],
+            "mono": ["JetBrains Mono", "monospace"]
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="bg-surface font-body text-on-surface antialiased min-h-screen p-4 sm:p-8">
+  <main class="w-full max-w-6xl mx-auto space-y-6">
+    <!-- Top Utility Context / Verification Strip -->
+    <div class="w-full bg-surface-container-low px-4 py-2.5 rounded-2xl flex flex-wrap items-center justify-between gap-3 border border-slate-200">
+      <div class="flex items-center gap-3">
+        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary-fixed text-on-primary-fixed font-bold text-xs">✓</span>
+        <span class="font-headline font-bold text-sm">BIT Patna Intranet Protocol</span>
+        <span class="bg-surface-container text-on-surface-variant px-2.5 py-0.5 rounded-full text-xs font-mono font-bold uppercase">Official BIT Patna Domain: @bitmesra.ac.in</span>
+      </div>
+      <div class="flex items-center gap-2 text-on-surface-variant font-mono text-xs font-bold">
+        <span class="w-2.5 h-2.5 rounded-full bg-primary animate-pulse"></span>
+        <span>Postgres CDC Engine Live</span>
+      </div>
+    </div>
+
+    <!-- Hero & Welcome Section -->
+    <div class="bg-surface-container-lowest rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200 flex flex-col lg:flex-row justify-between gap-6">
+      <div class="max-w-2xl">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 font-mono text-xs font-bold uppercase tracking-wider mb-3">
+          ⚡ Hyper-Local Logistics Engine
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-extrabold text-on-surface tracking-tight mb-2">
+          Welcome to <span class="text-primary">FareBuddy</span>
+        </h1>
+        <p class="text-base text-on-surface-variant leading-relaxed">
+          The hyper-local micro-pooling network for BIT Patna hostellers. Zero small-order surcharges, shared auto commutes, and peer-to-peer campus gear resale.
+        </p>
+      </div>
+
+      <!-- Quick Persona Switcher -->
+      <div class="bg-surface-container-low p-3.5 rounded-2xl flex flex-col gap-2 min-w-[280px]">
+        <div class="flex items-center justify-between px-1">
+          <span class="font-mono text-xs uppercase text-outline font-bold">Active Persona</span>
+          <span class="font-mono text-xs text-primary font-bold">1-Click Live Switch</span>
+        </div>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="p-2.5 rounded-xl bg-surface-container-lowest text-left shadow-sm border border-emerald-500/30" id="btn-p1" onclick="switchPersona('student1')">
+            <div class="font-bold text-sm">Aman Raj</div>
+            <div class="font-mono text-xs text-primary">btech15042.22</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">BH2 • Room 214</div>
+          </button>
+          <button class="p-2.5 rounded-xl bg-surface-container text-left opacity-75 hover:opacity-100" id="btn-p2" onclick="switchPersona('student2')">
+            <div class="font-bold text-sm">Riya Kumari</div>
+            <div class="font-mono text-xs text-primary">btech15108.23</div>
+            <div class="text-[10px] text-slate-500 mt-0.5">GH • Room 108</div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Split Grid: Auth vs Database -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Left Column: Auth Flow -->
+      <div class="lg:col-span-6 space-y-6">
+        <div class="bg-surface-container-lowest p-6 rounded-3xl shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-primary text-on-primary font-mono font-bold text-sm">1</span>
+              <h2 class="text-lg font-bold">Institutional Auth Gate</h2>
+            </div>
+            <span class="bg-primary-fixed text-on-primary-fixed px-2.5 py-0.5 rounded-full text-xs font-mono font-bold">Regex Enforced</span>
+          </div>
+          <p class="text-sm text-on-surface-variant mb-4">
+            Authentication is verified strictly through your BIT Mesra / BIT Patna GSuite institutional credentials.
+          </p>
+          <div class="space-y-4">
+            <div>
+              <label class="block font-bold text-sm mb-1" for="institutional-email">BIT Patna Roll Email</label>
+              <input class="w-full bg-surface-container-low px-4 py-2.5 rounded-xl font-mono text-sm border border-slate-200 focus:outline-none focus:border-primary" id="institutional-email" oninput="validateEmail(this.value)" type="email" value="btech15042.22@bitmesra.ac.in"/>
+              <div class="flex items-center justify-between mt-1.5 text-xs">
+                <span class="font-mono text-slate-500" id="email-format-helper">Pattern: ^btech15\d{3}\.\d{2}@bitmesra\.ac\.in$</span>
+                <span class="bg-emerald-100 text-emerald-800 font-mono font-bold px-2 py-0.5 rounded-full" id="validation-pill">Valid Roll Pattern</span>
+              </div>
+            </div>
+            <div>
+              <label class="block font-bold text-sm mb-1">Access Method</label>
+              <div class="grid grid-cols-2 gap-2">
+                <button class="bg-surface-container py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">🔑 Magic Link</button>
+                <button class="bg-surface-container-high py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5">🔒 Password OTP</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-surface-container-lowest p-6 rounded-3xl shadow-sm border border-slate-200">
+          <div class="flex items-center justify-between mb-4">
+            <div class="flex items-center gap-2">
+              <span class="flex items-center justify-center w-7 h-7 rounded-lg bg-primary-container text-on-primary-container font-mono font-bold text-sm">2</span>
+              <h2 class="text-lg font-bold">Student Profile &amp; Hub Setup</h2>
+            </div>
+            <span class="bg-surface-container text-slate-700 px-2.5 py-0.5 rounded-full text-xs font-bold">Step 2 of 2</span>
+          </div>
+          <div class="space-y-4">
+            <div>
+              <label class="block font-bold text-sm mb-1">Full Name</label>
+              <input class="w-full bg-surface-container-low px-4 py-2.5 rounded-xl text-sm border border-slate-200" id="student-name" type="text" value="Aman Raj"/>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block font-bold text-sm mb-1">Hostel Block</label>
+                <select class="w-full bg-surface-container-low px-3 py-2.5 rounded-xl text-sm border border-slate-200" id="hostel-select">
+                  <option value="BH1">BH1 (Aryabhatta)</option>
+                  <option selected value="BH2">BH2 (Bhabha)</option>
+                  <option value="BH3">BH3 (Ramanujan)</option>
+                  <option value="GH">GH (Girls Hostel)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block font-bold text-sm mb-1">Room Number</label>
+                <input class="w-full bg-surface-container-low px-4 py-2.5 rounded-xl font-mono text-sm border border-slate-200" id="room-number" type="text" value="214"/>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label class="font-bold text-sm">Instant Split UPI ID</label>
+                <span class="text-xs text-primary font-mono font-bold">✓ Verified Bank Handle</span>
+              </div>
+              <input class="w-full bg-surface-container-low px-4 py-2.5 rounded-xl font-mono text-sm border border-slate-200" id="upi-id" type="text" value="amanraj@okhdfcbank"/>
+            </div>
+            <button class="w-full bg-primary hover:bg-emerald-800 text-white font-bold py-3 rounded-xl transition-all shadow-sm" onclick="alert('Student Profile Verified & Cached for BIT Patna Intranet!')">
+              Save Profile &amp; Enter Campus Hub →
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Supabase & Postgres Schema -->
+      <div class="lg:col-span-6 space-y-6">
+        <div class="bg-surface-container-lowest p-6 rounded-3xl shadow-sm border border-slate-200 flex flex-col justify-between h-full">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-lg font-bold">Supabase &amp; Postgres Schema</h2>
+                <p class="text-xs text-on-surface-variant">Production-ready Relational DDL for BIT Patna Pool Engine</p>
+              </div>
+              <span class="bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full text-xs font-mono font-bold">RLS Policies Active</span>
+            </div>
+            <div class="bg-surface-container-low p-4 rounded-2xl border border-slate-200 font-mono text-xs space-y-1.5 overflow-x-auto">
+              <div class="text-primary font-bold text-sm mb-2">public.profiles (PRIMARY KEY: id)</div>
+              <div><span class="text-blue-700 font-bold">id</span>: uuid REFERENCES auth.users NOT NULL</div>
+              <div><span class="text-blue-700 font-bold">email</span>: text CHECK (email ~* '^btech15\\d{3}\\.\\d{2}@bitmesra\\.ac\\.in$')</div>
+              <div><span class="text-blue-700 font-bold">full_name</span>: text NOT NULL</div>
+              <div><span class="text-blue-700 font-bold">hostel</span>: text CHECK (hostel IN ('BH1','BH2','BH3','GH'))</div>
+              <div><span class="text-blue-700 font-bold">room</span>: text NOT NULL</div>
+              <div><span class="text-blue-700 font-bold">upi_id</span>: text NOT NULL</div>
+              <div class="pt-2 text-[11px] text-slate-600 border-t border-slate-200">
+                🛡️ <strong>RLS:</strong> create policy "Student self-update" on profiles for update using (auth.uid() = id);
+              </div>
+            </div>
+          </div>
+
+          <!-- Corridor map visual -->
+          <div class="mt-6 rounded-2xl overflow-hidden relative border border-slate-200 h-28 flex items-end p-3 text-white bg-slate-900">
+            <div class="absolute inset-0 bg-cover bg-center opacity-40" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBKCbfHcK-e7sF9fkfL1_nMXSzxr7l92-2qNTTux6ooiFU9fTAnYV48vazF1j5SpwUPDOZbcDiAUCox2Fwl31gna8OZxv-a2Vjlue-SCcsVRxUHOk09gk4rYFOup03xdGreF_ICQaLbQeATzXKmvsB23qEIFjH0iPHcvb6IdHHI3YtjVsJbSdSACw8pWBoE4dJITHb56-E02jk9nHG_i1CKa9gDKooNO6s890L0aFk')"></div>
+            <div class="relative z-10 bg-white/90 text-slate-900 px-3 py-1 rounded-lg text-xs font-bold backdrop-blur-sm">
+              📍 BIT Patna to Patna Junction (11.4 km corridor)
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</body>
+</html>
